@@ -21,6 +21,7 @@ class Size:
             return f"{round(self.mbytes, 1)}MB"
         else:
             return f"{round(self.gbytes, 1)}GB"
+        
     @property
     def bytes(self):
         return self._bytes
