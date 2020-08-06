@@ -14,13 +14,13 @@ class Size:
     def __repr__(self):
         i = int(log2(self.bytes)/10)
         if i == 0:
-            return f"{self.bytes}B"
+            return f"{round(self.bytes, 1)}B"
         elif i == 1:
-            return f"{self.kbytes}KB"
+            return f"{round(self.kbytes, 1)}KB"
         elif i == 2:
-            return f"{self.mbytes}MB"
+            return f"{round(self.mbytes, 1)}MB"
         else:
-            return f"{self.gbytes}GB"
+            return f"{round(self.gbytes, 1)}GB"
     @property
     def bytes(self):
         return self._bytes
