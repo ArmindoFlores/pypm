@@ -62,7 +62,7 @@ class ProcessManager:
         self.assert_logdir_exists()
         log_file = os.path.join(self.log_dir, process.name)
         with open(log_file+"_log_cpu", "ab") as file:
-            file.write(struct.pack("f", process.get_cpu_perc()))
+            file.write(struct.pack("d", process.get_cpu_perc()))
             
     def log_process_memory(self, process):
         self.assert_logdir_exists()
@@ -267,7 +267,8 @@ class ProcessManager:
         finally:
             self._stop = True
             
-            # In case the server_loop hasn't stopped yet
+            # In case the server_loop hasn't stopped yet, prevent
+            # socket.accept() for hanging
             try:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s.setblocking(0)
