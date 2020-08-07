@@ -21,7 +21,13 @@ class Process:
         self._process.kill()
         
     @property
+    def command(self):
+        return self._command
+        
+    @property
     def active(self):
+        if self._process is None:
+            return False
         return self._process.poll() is None
     
     @property 
@@ -29,11 +35,20 @@ class Process:
         return self._process.pid
     
     def get_mem_usage(self):
-        return Size(psutil.Process(self.pid).memory_info().rss)
+        if self.active:
+            return Size(psutil.Process(self.pid).memory_info().vms)
+        else:
+            return Size(0)
     
     def get_mem_perc(self):
-        return psutil.Process(self.pid).memory_percent()
+        if self.active:
+            return psutil.Process(self.pid).memory_percent("vms")
+        else:
+            return 0
     
     def get_cpu_perc(self):
-        return psutil.Process(self.pid).cpu_percent() / psutil.cpu_count()
+        if self.active:
+            return psutil.Process(self.pid).cpu_percent() / psutil.cpu_count()
+        else:
+            return 0
     

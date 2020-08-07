@@ -12,7 +12,10 @@ class Size:
         self._bytes = value
         
     def __repr__(self):
-        i = int(log2(self.bytes)/10)
+        if self._bytes == 0:
+            i = 0
+        else:
+            i = int(log2(self.bytes)/10)
         if i == 0:
             return f"{round(self.bytes, 1)}B"
         elif i == 1:

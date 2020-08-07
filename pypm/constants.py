@@ -5,9 +5,8 @@ CMD_ADD_PROCESS = "addproc"
 CMD_KILL_PROCESS = "killproc"
 CMD_RESTART_PROCESS = "reproc"
 CMD_REMOVE_PROCESS = "remproc"
+CMD_LIST = "list"
 CMD_STOP = "stop"
 
-ERR_INVALID_CMD = "errinvcmd"
-ERR_PROC_NOT_FOUND = "errprocnfound"
-
-MSG_ACK = "ack"
+DATA_CODE = b"\x00"
+MSG_CODE = b"\x01"
