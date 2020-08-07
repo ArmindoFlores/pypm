@@ -3,19 +3,22 @@ import socket
 import struct
 
 from colorama import Fore, Style
+import termtables as tt
 
 from . import constants as const
 from .units import Size
 
 commands = [
+    "init",
     "start",
     "stop",
     "add",
     "rem",
     "kill",
     "restart",
-    "stats",
-    "list"
+    "status",
+    "list",
+    "start"
 ]
 commands.sort()
 
@@ -28,11 +31,14 @@ Positional arguments:
 For additional help use python -m pypm CMD --help
 """
 
+def color(text, color):
+    return f"{color}{text}{Style.RESET_ALL}"
+
 def isdata(bytearr):
     return bytearr[0] == const.DATA_CODE[0]
 
 def get_start_parser():
-    parser = argparse.ArgumentParser(prog="python -m pypm")
+    parser = argparse.ArgumentParser(prog="python -m pypm init")
     parser.add_argument("--port", 
                         type=int, 
                         default=8080, 
@@ -67,9 +73,9 @@ def get_cmd_parser(cmd):
 
 def print_msg(text):
     if text.startswith("Error:"):
-        print(f"{Fore.RED}{text}{Style.RESET_ALL}")
+        print(color(text, Fore.RED))
     elif text.startswith("Warning:"):
-        print(f"{Fore.YELLOW}{text}{Style.RESET_ALL}")
+        print(color(text, Fore.YELLOW))
     else:
         print(text)
 
@@ -87,6 +93,11 @@ def process_command(cmd, args, host, port):
             if len(args) > 4:
                 print_msg("Error: Too many arguments")
             process_add_command(args, host, port)
+        elif cmd == "start":
+            if len(args) > 1:
+                print_msg("Error: Invalid number of arguments")
+                return
+            process_start_command(args, host, port)
         elif cmd == "restart":
             if len(args) != 1:
                 print_msg("Error: Invalid number of arguments")
@@ -102,13 +113,11 @@ def process_command(cmd, args, host, port):
                 print_msg("Error: Invalid number of arguments")
                 return
             process_kill_command(args, host, port) 
-        elif cmd == "stats":
-            if len(args) != 1:
+        elif cmd == "status":
+            if len(args) > 1:
                 print_msg("Error: Invalid number of arguments")
                 return
-            mem = process_mem_command(args, host, port)
-            if mem is not None:
-                print_msg(mem)
+            process_status_command(args, host, port)     
         elif cmd == "list":
             if len(args) != 0:
                 print_msg("Error: Invalid number of arguments")
@@ -117,6 +126,53 @@ def process_command(cmd, args, host, port):
             
     except ConnectionRefusedError:
         print_msg("Error: pypm is not running")
+        
+def process_status_command(args, host, port):
+    mem = process_mem_command(args, host, port)
+    if mem is None:
+        return
+    if len(mem) == 0:
+        print_msg("Warning: There are no processes being managed")
+        return
+    cpu = process_cpu_command(args, host, port)
+    if cpu is None:
+        return
+    pid = process_pid_command(args, host, port)
+    if pid is None:
+        return
+    uptime = process_uptime_command(args, host, port)
+    if uptime is None:
+        return
+        
+    lines = []
+    for name in mem:
+        memory = mem[name]
+        if name in pid:
+            active = f"{Fore.GREEN}active{Style.RESET_ALL}"
+            p = pid[name]
+            if p == -1:
+                p = "N/A"
+                active = f"{Fore.RED}stopped{Style.RESET_ALL}"
+        else:
+            p = "N/A"
+            active = "N/A"
+        if name in cpu:
+            c = str(cpu[name])+"%"
+        else:
+            c = "N/A"
+        if name in uptime:
+            up = uptime[name]
+        else:
+            up = "N/A"
+        
+        lines.append([name, p, memory, c, up, active])
+        
+    header = ["Name", "PID", "Mem.", "CPU", "Uptime", "Status"]
+    table = tt.to_string(
+        lines,
+        header=list(map(lambda c: color(c, Fore.CYAN), header)),
+    )
+    print(table)
         
 def process_list_command(args, host, port):
     resp = send_command(const.CMD_LIST, args, host, port)
@@ -134,8 +190,65 @@ def process_list_command(args, host, port):
 def process_mem_command(args, host, port):
     resp = send_command(const.CMD_GET_MEMORY, args, host, port)
     if isdata(resp):
-        size = Size(struct.unpack("d", resp[1:])[0])
-        return size
+        values = {}
+        i = 0
+        while i+1 < len(resp) and b"\x00" in resp[1+i:]:
+            end = resp[1+i:].index(b"\x00")+1
+            name = resp[1+i:i+end].decode()
+            value = Size(struct.unpack("d", resp[1+i+end:i+end+9])[0])
+            values[name] = value
+            i += end+8
+        return values
+    else:
+        print_msg(resp[1:].decode())
+        return None
+    
+def process_cpu_command(args, host, port):
+    resp = send_command(const.CMD_GET_CPU, args, host, port)
+    if isdata(resp):
+        values = {}
+        i = 0
+        while i+1 < len(resp) and b"\x00" in resp[1+i:]:
+            end = resp[1+i:].index(b"\x00")+1
+            name = resp[1+i:i+end].decode()
+            value = struct.unpack("d", resp[1+i+end:i+end+9])[0]
+            values[name] = value
+            i += end+8
+        return values
+    else:
+        print_msg(resp[1:].decode())
+        return None
+    
+def process_pid_command(args, host, port):
+    resp = send_command(const.CMD_GET_PID, args, host, port)
+    if isdata(resp):
+        values = {}
+        i = 0
+        while i+1 < len(resp) and b"\x00" in resp[1+i:]:
+            end = resp[1+i:].index(b"\x00")+1
+            name = resp[1+i:i+end].decode()
+            value = struct.unpack("i", resp[1+i+end:i+end+5])[0]
+            values[name] = value
+            i += end+4
+        return values
+    else:
+        print_msg(resp[1:].decode())
+        return None
+    
+def process_uptime_command(args, host, port):
+    resp = send_command(const.CMD_GET_UPTIME, args, host, port)
+    if isdata(resp):
+        values = {}
+        i = 0
+        while i+1 < len(resp) and b"\x00" in resp[1+i:]:
+            end = resp[1+i:].index(b"\x00")+1
+            name = resp[1+i:i+end].decode()
+            i += end
+            end = resp[1+i:].index(b"\x00")+1
+            value = resp[1+i:i+end].decode()
+            values[name] = value
+            i += end
+        return values
     else:
         print_msg(resp[1:].decode())
         return None
@@ -156,6 +269,10 @@ def process_add_command(args, host, port):
 def process_restart_command(args, host, port):
     resp = send_command(const.CMD_RESTART_PROCESS, args, host, port)
     print_msg(resp[1:].decode())
+    
+def process_start_command(args, host, port):
+    resp = send_command(const.CMD_START_PROCESS, args, host, port)
+    print_msg(resp[1:].decode())
         
 def process_kill_command(args, host, port):
     resp = send_command(const.CMD_KILL_PROCESS, args, host, port)
@@ -170,7 +287,14 @@ def send_command(cmd, args, host, port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((host, port))
     sock.sendall(string.encode("utf-8"))
-    resp = sock.recv(2048)
+    resp = b""
+    while True:
+        data = sock.recv(2048)
+        if data == b"":
+            break
+        resp += data
+        if len(data) < 2048:
+            break
     sock.close()
     return resp
     
@@ -189,7 +313,7 @@ if __name__ == "__main__":
         print_msg(help_text)
         quit()
     
-    if cmd == "start":
+    if cmd == "init":
         argparser = get_start_parser()
         args, _ = argparser.parse_known_args()
         print_msg(f"Starting process manager on port {args.port}...")

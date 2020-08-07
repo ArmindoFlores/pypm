@@ -1,1 +1,4 @@
-psutil
+psutil>=5.7.2
+termtables>=0.2.2
+matplotlib>=3.2.1
+colorama>=0.4.3

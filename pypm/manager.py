@@ -78,10 +78,16 @@ class ProcessManager:
             self._process_get_mem_cmd(command, sock)
         elif command[0] == const.CMD_GET_CPU:
             self._process_get_cpu_cmd(command, sock)
+        elif command[0] == const.CMD_GET_PID:
+            self._process_get_pid_cmd(command, sock)
+        elif command[0] == const.CMD_GET_UPTIME:
+            self._process_get_uptime_cmd(command, sock)
         elif command[0] == const.CMD_ADD_PROCESS:
             self._process_command_add_proc(command, sock)
         elif command[0] == const.CMD_RESTART_PROCESS:
             self._process_command_restart_proc(command, sock)
+        elif command[0] == const.CMD_START_PROCESS:
+            self._process_command_start_proc(command, sock)
         elif command[0] == const.CMD_STOP:
             self._process_command_stop(command, sock)
         elif command[0] == const.CMD_REMOVE_PROCESS:
@@ -104,41 +110,113 @@ class ProcessManager:
         except Exception:
             sock.sendall(const.MSG_CODE+b"Error: Couldn't get process list")
             
+    def _process_get_uptime_cmd(self, command, sock):
+        try:
+            if 1 <= len(command) <= 2:
+                if len(command) == 2:
+                    name = command[1]
+                    uptime = None
+                    for process in self._processes:
+                        if process.name == name:
+                            uptime = str(process.uptime)
+                            break 
+                    if uptime is None:
+                        sock.sendall(const.MSG_CODE+b"Error: Couldn't find process '" + name.encode() + b"'")
+                    else:
+                        sock.sendall(const.DATA_CODE+name.encode()+b"\x00"+uptime.encode()+b"\x00")
+                else:
+                    uptime = []
+                    for process in self._processes:
+                        uptime.append((process.name, str(process.uptime)))
+                    message = []
+                    for up in uptime:
+                        message.append(up[0].encode()+b"\x00"+up[1].encode()+b"\x00")
+                    sock.sendall(const.DATA_CODE+b"".join(message))
+            else:
+                sock.sendall(const.MSG_CODE+b"Error: Invalid number of arguments")
+        except Exception:
+            sock.sendall(const.MSG_CODE+b"Error: Couldn't get process uptime")
+            
     def _process_get_mem_cmd(self, command, sock):
         try:
-            if len(command) == 2:
-                name = command[1]
-                memory = None
-                for process in self._processes:
-                    if process.name == name:
-                        memory = process.get_mem_usage().bytes   
-                        break 
-                if memory is None:
-                    sock.sendall(const.MSG_CODE+b"Error: Couldn't find process '" + name.encode() + b"'")
+            if 1 <= len(command) <= 2:
+                if len(command) == 2:
+                    name = command[1]
+                    memory = None
+                    for process in self._processes:
+                        if process.name == name:
+                            memory = process.get_mem_usage().bytes   
+                            break 
+                    if memory is None:
+                        sock.sendall(const.MSG_CODE+b"Error: Couldn't find process '" + name.encode() + b"'")
+                    else:
+                        sock.sendall(const.DATA_CODE+name.encode()+b"\x00"+struct.pack("d", memory))
                 else:
-                    sock.sendall(const.DATA_CODE+struct.pack("d", memory))
+                    memory = []
+                    for process in self._processes:
+                        memory.append((process.name, process.get_mem_usage().bytes))
+                    message = []
+                    for mem in memory:
+                        message.append(mem[0].encode()+b"\x00"+struct.pack("d", mem[1]))
+                    sock.sendall(const.DATA_CODE+b"".join(message))
             else:
                 sock.sendall(const.MSG_CODE+b"Error: Invalid number of arguments")
         except Exception:
             sock.sendall(const.MSG_CODE+b"Error: Couldn't get process memory usage")
             
-    def _process_get_cpu_cmd(self, command, sock):
+    def _process_get_pid_cmd(self, command, sock):
         try:
-            if len(command) == 2:
-                name = command[1]
-                cpu = None
-                for process in self._processes:
-                    if process.name == name:
-                        cpu = process.get_cpu_perc()
-                        break 
-                if cpu is None:
-                    sock.sendall(const.MSG_CODE+b"Error: Couldn't find process '" + name.encode() + b"'")
+            if 1 <= len(command) <= 2:
+                if len(command) == 2:
+                    name = command[1]
+                    pid = None
+                    for process in self._processes:
+                        if process.name == name:
+                            pid = process.pid  
+                            break 
+                    if pid is None:
+                        sock.sendall(const.MSG_CODE+b"Error: Couldn't find process '" + name.encode() + b"'")
+                    else:
+                        sock.sendall(const.DATA_CODE+name.encode()+b"\x00"+struct.pack("i", pid))
                 else:
-                    sock.sendall(const.DATA_CODE+struct.pack("d", cpu))
+                    pid = []
+                    for process in self._processes:
+                        pid.append((process.name, process.pid))
+                    message = []
+                    for p in pid:
+                        message.append(p[0].encode()+b"\x00"+struct.pack("i", p[1]))
+                    sock.sendall(const.DATA_CODE+b"".join(message))
             else:
                 sock.sendall(const.MSG_CODE+b"Error: Invalid number of arguments")
         except Exception:
-            sock.sendall(const.MSG_CODE+b"Error: Couldn't get process cpu usage")
+            sock.sendall(const.MSG_CODE+b"Error: Couldn't get process PID")
+            
+    def _process_get_cpu_cmd(self, command, sock):
+        try:
+            if 1 <= len(command) <= 2:
+                if len(command) == 2:
+                    name = command[1]
+                    cpu = None
+                    for process in self._processes:
+                        if process.name == name:
+                            cpu = process.get_cpu_perc()   
+                            break 
+                    if cpu is None:
+                        sock.sendall(const.MSG_CODE+b"Error: Couldn't find process '" + name.encode() + b"'")
+                    else:
+                        sock.sendall(const.DATA_CODE+name.encode()+b"\x00"+struct.pack("d", cpu))
+                else:
+                    cpu = []
+                    for process in self._processes:
+                        cpu.append((process.name, process.get_cpu_perc()))
+                    message = []
+                    for c in cpu:
+                        message.append(c[0].encode()+b"\x00"+struct.pack("d", c[1]))
+                    sock.sendall(const.DATA_CODE+b"".join(message))
+            else:
+                sock.sendall(const.MSG_CODE+b"Error: Invalid number of arguments")
+        except Exception:
+            sock.sendall(const.MSG_CODE+b"Error: Couldn't get process CPU usage")
             
     def _process_command_add_proc(self, command, sock):
         try:
@@ -175,6 +253,46 @@ class ProcessManager:
             
         except Exception:
             sock.sendall(const.MSG_CODE+b"Error: Couldn't restart process")
+    
+    def _process_command_start_proc(self, command, sock):
+        try:
+            if not (1 <= len(command) <= 2):
+                sock.sendall(const.MSG_CODE+b"Error: Invalid number of arguments")
+                return
+            if len(command) == 2:
+                name = command[1]
+                process = None
+                for proc in self._processes:
+                    if proc.name == name:
+                        process = proc
+                        break 
+                if process is None:
+                    sock.sendall(const.MSG_CODE+b"Error: Couldn't find process '" + name.encode() + b"'")
+                    return
+                if process.active:
+                    sock.sendall(const.MSG_CODE+b"Warning: Process was already running, so nothing was done")
+                else:
+                    process.start()
+                    sock.sendall(const.MSG_CODE+b"Successfully started process '" + name.encode() + b"'")
+            else:
+                if len(self._processes) == 0:
+                    sock.sendall(const.MSG_CODE+b"Warning: No processes to start")
+                    return
+                c = 0
+                for process in self._processes:
+                    if not process.active:
+                        c += 1
+                        process.start()
+                if c == 0:
+                    sock.sendall(const.MSG_CODE+b"Warning: No processes were started")
+                else:
+                    total = str(c).encode()
+                    length = str(len(self._processes)).encode()
+                    sock.sendall(const.MSG_CODE+b"Started " + total + b" out of " + length + b" processes")
+                
+        except Exception as e:
+            print(e)
+            sock.sendall(const.MSG_CODE+b"Error: Couldn't start process")
             
     def _process_command_rem_proc(self, command, sock):
         try:
