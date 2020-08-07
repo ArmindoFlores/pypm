@@ -14,18 +14,10 @@ def sbool(string):
     return True if string == "True" else False
 
 
+# TODO: Add logging capabilities and documentation
 class ProcessManager:
     def __init__(self, port=8080, log_dir=None, log_frequency=30):
         self.port = port
-        # if log_dir is not None:
-        #     if os.path.isabs(log_dir):
-        #         self.log_dir = log_dir
-        #     else:
-        #         self.log_dir = os.path.join(os.path.dirname(__file__), log_dir)
-        #     if not os.path.isdir(self.log_dir):
-        #         raise FileNotFoundError(f"Log directory wasn't found ({self.log_dir})")
-        # else:
-        #     self.log_dir = None
         self.log_dir = log_dir
         self.log_frequency = log_frequency
         self._processes = []
@@ -234,23 +226,43 @@ class ProcessManager:
             
     def _process_command_restart_proc(self, command, sock):
         try:
-            if len(command) != 2:
+            if not (1 <= len(command) <= 2):
                 sock.sendall(const.MSG_CODE+b"Error: Invalid number of arguments")
                 return
-            name = command[1]
-            process = None
-            for proc in self._processes:
-                if proc.name == name:
-                    process = proc
-                    break 
-            if process is None:
-                sock.sendall(const.MSG_CODE+b"Error: Couldn't find process '" + name.encode() + b"'")
-                return
-            if process.active:
-                process.kill()
-            process.start()
-            sock.sendall(const.MSG_CODE+b"Successfully restarted process '" + name.encode() + b"'")
-            
+            if len(command) == 2:
+                name = command[1]
+                process = None
+                for proc in self._processes:
+                    if proc.name == name:
+                        process = proc
+                        break 
+                if process is None:
+                    sock.sendall(const.MSG_CODE+b"Error: Couldn't find process '" + name.encode() + b"'")
+                    return
+                if process.active:
+                    process.kill()
+                process.start()
+                sock.sendall(const.MSG_CODE+b"Successfully restarted process '" + name.encode() + b"'")
+            else:
+                if len(self._processes) == 0:
+                    sock.sendall(const.MSG_CODE+b"Warning: No processes to restart")
+                    return
+                c = 0
+                for process in self._processes:
+                    try:
+                        if process.active:
+                            process.kill()
+                        process.start()
+                        c += 1
+                    except Exception:
+                        pass
+                if c == 0:
+                    sock.sendall(const.MSG_CODE+b"Warning: No processes were restarted")
+                else:
+                    total = str(c).encode()
+                    length = str(len(self._processes)).encode()
+                    sock.sendall(const.MSG_CODE+b"Restarted " + total + b" out of " + length + b" processes")
+                
         except Exception:
             sock.sendall(const.MSG_CODE+b"Error: Couldn't restart process")
     
@@ -281,8 +293,11 @@ class ProcessManager:
                 c = 0
                 for process in self._processes:
                     if not process.active:
-                        c += 1
-                        process.start()
+                        try:
+                            process.start()
+                            c += 1
+                        except Exception:
+                            pass
                 if c == 0:
                     sock.sendall(const.MSG_CODE+b"Warning: No processes were started")
                 else:
@@ -290,8 +305,7 @@ class ProcessManager:
                     length = str(len(self._processes)).encode()
                     sock.sendall(const.MSG_CODE+b"Started " + total + b" out of " + length + b" processes")
                 
-        except Exception as e:
-            print(e)
+        except Exception:
             sock.sendall(const.MSG_CODE+b"Error: Couldn't start process")
             
     def _process_command_rem_proc(self, command, sock):
@@ -371,7 +385,6 @@ class ProcessManager:
         try:
             start = time.time()
             self._server_thread = threading.Thread(target=self.server_loop)
-            # self._server_thread.setDaemon(True)
             self._server_thread.start()
             while not self._stop:
                 if time.time() - start > self.log_period:
@@ -385,8 +398,8 @@ class ProcessManager:
         finally:
             self._stop = True
             
-            # In case the server_loop hasn't stopped yet, prevent
-            # socket.accept() for hanging
+            #* In case the server_loop hasn't stopped yet, prevent
+            #* socket.accept() from hanging by connecting
             try:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s.setblocking(0)

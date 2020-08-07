@@ -8,6 +8,7 @@ import termtables as tt
 from . import constants as const
 from .units import Size
 
+# TODO: Add monit command (curses app)
 commands = [
     "init",
     "start",
@@ -99,7 +100,7 @@ def process_command(cmd, args, host, port):
                 return
             process_start_command(args, host, port)
         elif cmd == "restart":
-            if len(args) != 1:
+            if len(args) > 1:
                 print_msg("Error: Invalid number of arguments")
                 return
             process_restart_command(args, host, port)
