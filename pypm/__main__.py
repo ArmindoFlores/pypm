@@ -33,9 +33,11 @@ For additional help use python -m pypm CMD --help
 """
 
 def color(text, color):
+    """Adds color to given text."""
     return f"{color}{text}{Style.RESET_ALL}"
 
 def isdata(bytearr):
+    """Returns True if the given data is an encoded string or binary data"""
     return bytearr[0] == const.DATA_CODE[0]
 
 def get_start_parser():
@@ -73,6 +75,7 @@ def get_cmd_parser(cmd):
     return parser
 
 def print_msg(text):
+    """Prints the given text, coloring it based on the first word"""
     if text.startswith("Error:"):
         print(color(text, Fore.RED))
     elif text.startswith("Warning:"):
@@ -81,6 +84,14 @@ def print_msg(text):
         print(text)
 
 def process_command(cmd, args, host, port):
+    """Processes a given command
+
+    Args:
+        cmd (str): Command
+        args (list): List of command arguments
+        host (str): Remote host to connect to
+        port (int): Network port
+    """
     try:
         if cmd == "stop":
             if len(args) != 0:
@@ -129,6 +140,7 @@ def process_command(cmd, args, host, port):
         print_msg("Error: pypm is not running")
         
 def process_status_command(args, host, port):
+    """Prints the status table for a given process/list of processes"""
     mem = process_mem_command(args, host, port)
     if mem is None:
         return
@@ -176,6 +188,7 @@ def process_status_command(args, host, port):
     print(table)
         
 def process_list_command(args, host, port):
+    """List all managed processes"""
     resp = send_command(const.CMD_LIST, args, host, port)
     if isdata(resp):
         strings = resp[1:].decode("utf-8").split("\x00\x00")
@@ -189,6 +202,7 @@ def process_list_command(args, host, port):
         print_msg(resp[1:].decode())    
         
 def process_mem_command(args, host, port):
+    """Get the memory usage of a specific process/list of processes"""
     resp = send_command(const.CMD_GET_MEMORY, args, host, port)
     if isdata(resp):
         values = {}
@@ -205,6 +219,7 @@ def process_mem_command(args, host, port):
         return None
     
 def process_cpu_command(args, host, port):
+    """Get the cpu usage of a specific process/list of processes"""
     resp = send_command(const.CMD_GET_CPU, args, host, port)
     if isdata(resp):
         values = {}
@@ -221,6 +236,7 @@ def process_cpu_command(args, host, port):
         return None
     
 def process_pid_command(args, host, port):
+    """Get the PID of a specific process/list of processes"""
     resp = send_command(const.CMD_GET_PID, args, host, port)
     if isdata(resp):
         values = {}
@@ -237,6 +253,7 @@ def process_pid_command(args, host, port):
         return None
     
 def process_uptime_command(args, host, port):
+    """Get the uptime of a specific process/list of processes"""
     resp = send_command(const.CMD_GET_UPTIME, args, host, port)
     if isdata(resp):
         values = {}
@@ -255,10 +272,12 @@ def process_uptime_command(args, host, port):
         return None
         
 def process_stop_command(args, host, port):
+    """Closes the pypm server running on the given host"""
     resp = send_command(const.CMD_STOP, args, host, port)
     print_msg(resp[1:].decode())
         
 def process_add_command(args, host, port):
+    """Adds a new process to be managed"""
     name, command = args[:2]
     log_cpu = args[2] if len(args) >= 3 else "False"
     log_freq = args[3] if len(args) == 4 else "False"
@@ -268,18 +287,22 @@ def process_add_command(args, host, port):
     print_msg(resp[1:].decode())
         
 def process_restart_command(args, host, port):
+    """Restarts a given process/list of processes"""
     resp = send_command(const.CMD_RESTART_PROCESS, args, host, port)
     print_msg(resp[1:].decode())
     
 def process_start_command(args, host, port):
+    """Starts a specific process/list of processes"""
     resp = send_command(const.CMD_START_PROCESS, args, host, port)
     print_msg(resp[1:].decode())
         
 def process_kill_command(args, host, port):
+    """Stops a specific process/list of processes"""
     resp = send_command(const.CMD_KILL_PROCESS, args, host, port)
     print_msg(resp[1:].decode())
         
 def process_remove_command(args, host, port):
+    """Removes (and stops) a process"""
     resp = send_command(const.CMD_REMOVE_PROCESS, args, host, port)
     print_msg(resp[1:].decode())
 
@@ -303,7 +326,6 @@ if __name__ == "__main__":
     import subprocess
     import sys
     
-    
     from .pypm import main
     
     
@@ -315,6 +337,9 @@ if __name__ == "__main__":
         quit()
     
     if cmd == "init":
+        # ! This is only for debugging purposes. It makes it so the start 
+        # ! command hangs and prints all output to the terminal window 
+        # ! where it was called from
         argparser = get_start_parser()
         args, _ = argparser.parse_known_args()
         print_msg(f"Starting process manager on port {args.port}...")
@@ -323,6 +348,7 @@ if __name__ == "__main__":
         except socket.error:
             print_msg("Error: this port is already in use")
         
+        # * This would be the actual production code
         # pid = subprocess.Popen([sys.executable, 
         #                         "-m", 
         #                         "pypm.pypm", 

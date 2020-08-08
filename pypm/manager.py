@@ -28,6 +28,17 @@ class ProcessManager:
         self._stop = False
         
     def add_process(self, process, log_cpu=False, log_memory=False):
+        """Adds a process to be managed.
+
+        Args:
+            process (Process): The process
+            log_cpu (bool, optional): True if CPU usage should be tracked. Defaults to False.
+            log_memory (bool, optional): True if memory usage should be tracked. Defaults to False.
+
+        Returns:
+            bool: True if process wasn't already added
+        """
+        
         if process in self._processes:
             return False
         self._processes.append(process)
@@ -38,6 +49,7 @@ class ProcessManager:
         return True
             
     def rem_process(self, process):
+        """Removes a process"""
         self._processes.remove(process)
         if process in self._log_cpu:
             self._log_cpu.remove(process)
