@@ -21,3 +21,4 @@ To list all current processes, use `python -m pypm list`. To get the status of a
 
 Killing processes is done using the `kill` instruction. All other options are listed on the help menu. Stopping the pypm instance will kill all running processes.
 
+test
