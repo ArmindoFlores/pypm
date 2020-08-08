@@ -75,33 +75,36 @@ class ProcessManager:
             file.write(struct.pack("d", process.get_mem_usage().bytes))
             
     def _process_command(self, command, sock):
-        command = shlex.split(command)
-        if len(command) == 0:
-            sock.sendall(const.MSG_CODE+b"Error: Unrecognized command")  
-        elif command[0] == const.CMD_GET_MEMORY:
-            self._process_get_mem_cmd(command, sock)
-        elif command[0] == const.CMD_GET_CPU:
-            self._process_get_cpu_cmd(command, sock)
-        elif command[0] == const.CMD_GET_PID:
-            self._process_get_pid_cmd(command, sock)
-        elif command[0] == const.CMD_GET_UPTIME:
-            self._process_get_uptime_cmd(command, sock)
-        elif command[0] == const.CMD_ADD_PROCESS:
-            self._process_command_add_proc(command, sock)
-        elif command[0] == const.CMD_RESTART_PROCESS:
-            self._process_command_restart_proc(command, sock)
-        elif command[0] == const.CMD_START_PROCESS:
-            self._process_command_start_proc(command, sock)
-        elif command[0] == const.CMD_STOP:
-            self._process_command_stop(command, sock)
-        elif command[0] == const.CMD_REMOVE_PROCESS:
-            self._process_command_rem_proc(command, sock)
-        elif command[0] == const.CMD_KILL_PROCESS:
-            self._process_command_kill_proc(command, sock)
-        elif command[0] == const.CMD_LIST:
-            self._process_list_cmd(command, sock)
-        else:
-            sock.sendall(const.MSG_CODE+b"Error: Unrecognized command")  
+        try:
+            command = shlex.split(command)
+            if len(command) == 0:
+                sock.sendall(const.MSG_CODE+b"Error: Unrecognized command")  
+            elif command[0] == const.CMD_GET_MEMORY:
+                self._process_get_mem_cmd(command, sock)
+            elif command[0] == const.CMD_GET_CPU:
+                self._process_get_cpu_cmd(command, sock)
+            elif command[0] == const.CMD_GET_PID:
+                self._process_get_pid_cmd(command, sock)
+            elif command[0] == const.CMD_GET_UPTIME:
+                self._process_get_uptime_cmd(command, sock)
+            elif command[0] == const.CMD_ADD_PROCESS:
+                self._process_command_add_proc(command, sock)
+            elif command[0] == const.CMD_RESTART_PROCESS:
+                self._process_command_restart_proc(command, sock)
+            elif command[0] == const.CMD_START_PROCESS:
+                self._process_command_start_proc(command, sock)
+            elif command[0] == const.CMD_STOP:
+                self._process_command_stop(command, sock)
+            elif command[0] == const.CMD_REMOVE_PROCESS:
+                self._process_command_rem_proc(command, sock)
+            elif command[0] == const.CMD_KILL_PROCESS:
+                self._process_command_kill_proc(command, sock)
+            elif command[0] == const.CMD_LIST:
+                self._process_list_cmd(command, sock)
+            else:
+                sock.sendall(const.MSG_CODE+b"Error: Unrecognized command") 
+        except ConnectionResetError:
+            pass
             
     def _process_list_cmd(self, command, sock):
         try:

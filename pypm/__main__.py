@@ -2,13 +2,13 @@ import argparse
 import socket
 import struct
 
-from colorama import Fore, Style
 import termtables as tt
+from colorama import Fore, Style
 
 from . import constants as const
+from .process import Process
 from .units import Size
 
-# TODO: Add monit command (curses app)
 commands = [
     "init",
     "start",
@@ -19,7 +19,8 @@ commands = [
     "restart",
     "status",
     "list",
-    "start"
+    "start",
+    "monit"
 ]
 commands.sort()
 
@@ -135,9 +136,29 @@ def process_command(cmd, args, host, port):
                 print_msg("Error: Invalid number of arguments")
                 return
             process_list_command(args, host, port)
+        elif cmd == "monit":
+            if len(args) != 0:
+                print_msg("Error: Invalid number of arguments")
+                return
+            process_monit_command(args, host, port)
             
     except ConnectionRefusedError:
         print_msg("Error: pypm is not running")
+        
+def process_monit_command(args, host, port):
+    from .monit import App
+    resp = send_command(const.CMD_LIST, args, host, port)
+    if isdata(resp):
+        strings = resp[1:].decode("utf-8").split("\x00\x00")
+        if strings == ['']:
+            total = None
+        else:
+            total = map(lambda l: l.split("\x00"), strings)
+    app = App(host, port)
+    if total is not None:
+        for name, proc in total:
+            app.add_process(name, proc)
+    app.start()
         
 def process_status_command(args, host, port):
     """Prints the status table for a given process/list of processes"""
