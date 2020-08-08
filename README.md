@@ -17,7 +17,7 @@ To start a pypm instance, use the command `python -m pypm init`. For more info a
 The next thing you're going to want to do is add a process to be monitored. You can use `python -m pypm add [name] [command]`. An example would be `python -m pypm add server "python -m http.server 80"`, which would launch an HTTP server.
 To list all current processes, use `python -m pypm list`. To get the status of a specific process you can call `python -m pypm status [name]`, which will display a table like the one below.
 
-![table]("https://imgur.com/QBeGfoC.png" "Table")
+![table](https://imgur.com/QBeGfoC.png "Table")
 
 Killing processes is done using the `kill` instruction. All other options are listed on the help menu. Stopping the pypm instance will kill all running processes.
 
