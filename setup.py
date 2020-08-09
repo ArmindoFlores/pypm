@@ -7,7 +7,7 @@ with open("requirements.txt", "r") as fh:
     requirements = fh.read().split("\n")
 
 setuptools.setup(
-    name="py-pm",
+    name="python-pm",
     version="0.0.1",
     author="Francisco Rodrigues",
     author_email="francisco.rodrigues0908@gmail.com",

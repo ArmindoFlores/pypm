@@ -7,7 +7,7 @@ pypm is a simple, python-based process manager. You can launch and monitor proce
 
 ## 📥 How do I install it?
 
-You can install pypm via pip with `pip install py-pm`
+You can install pypm via pip with `pip install python-pm`
 
 
 ## 📖 How do I use it?
