@@ -374,27 +374,40 @@ if __name__ == "__main__":
         quit()
     
     if cmd == "init":
-        # ! This is only for debugging purposes. It makes it so the start 
-        # ! command hangs and prints all output to the terminal window 
-        # ! where it was called from
+        
         argparser = get_start_parser()
         args, _ = argparser.parse_known_args()
         print_msg(f"Starting process manager on port {args.port}...")
-        try:
-            main(args.port, args.logdir, args.logfreq)
-        except socket.error:
-            print_msg("Error: this port is already in use")
+        
+        # ! This is only for debugging purposes. It makes it so the start 
+        # ! command hangs and prints all output to the terminal window 
+        # ! where it was called from
+        # try:
+        #     main(args.port, args.logdir, args.logfreq)
+        # except socket.error:
+        #     print_msg("Error: this port is already in use")
         
         # * This would be the actual production code
-        # pid = subprocess.Popen([sys.executable, 
-        #                         "-m", 
-        #                         "pypm.pypm", 
-        #                         str(args.port), 
-        #                         str(args.logdir), 
-        #                         str(args.logfreq)],
-        #         shell=False, stdin=None, stdout=None, stderr=None,
-        #          close_fds=True, creationflags=0x00000008).pid
-        # print_msg(f"Started process manager on port {args.port} with the PID {pid}")
+        
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            result = sock.connect_ex(("127.0.0.1", args.port))
+            if result == 0:
+                print_msg("Error: this port is already in use")
+                quit()
+        except socket.error:
+            print_msg("Error: this port is already in use")
+            quit()
+        
+        pid = subprocess.Popen([sys.executable, 
+                                "-m", 
+                                "pypm.pypm", 
+                                str(args.port), 
+                                str(args.logdir), 
+                                str(args.logfreq)],
+                shell=False, stdin=None, stdout=None, stderr=None,
+                 close_fds=True, creationflags=0x00000008).pid
+        print_msg(f"Started process manager on port {args.port} with the PID {pid}")
         
     elif cmd in commands:
         argparser = get_cmd_parser(cmd)
