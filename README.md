@@ -21,6 +21,6 @@ To list all current processes, use `python -m pypm list`. To get the status of a
 
 Killing processes is done using the `kill` instruction. All other options are listed on the help menu. Stopping the pypm instance will kill all running processes. There is a simple visual interface available with the command `python -m pypm monit`.
 
-![monit](https://imgur.com/j9beUPF "Monitoring")
+![monit](https://imgur.com/j9beUPF.png "Monitoring")
 
 On Linux it might be useful to add `alias pypm="python3 -m pypm"` to your bash profile so the command syntax becomes simpler.
