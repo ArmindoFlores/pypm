@@ -128,17 +128,17 @@ class App:
         curses.wrapper(self.main_loop)
         
     def setup(self):
-        if curses.LINES < 16 or curses.COLS < 54:
+        if curses.LINES < 17 or curses.COLS < 54:
             print("Your terminal isn't big enough")
             return False
         curses.curs_set(False)
         self._screen.nodelay(True)
-        lsize = (curses.LINES, curses.COLS//3)
+        lsize = (curses.LINES-1, curses.COLS//3)
         self._topleftwin = curses.newwin(*lsize, 0, 0)
-        height = curses.LINES-8
+        height = curses.LINES-9
         width = curses.COLS-lsize[1]
         self._toprightwin = curses.newwin(height, width, 0, lsize[1])
-        self._botrightwin = curses.newwin(curses.LINES-height, width, height, lsize[1])
+        self._botrightwin = curses.newwin(curses.LINES-height-1, width, height, lsize[1])
         
         curses.use_default_colors()
         curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLACK)
@@ -277,7 +277,8 @@ class App:
         self._botrightwin.clear()
         self._toprightwin.clear()
         self._topleftwin.clear()
-        
+        string = "Press Ctrl+C to exit | Use [SPACE] to change log mode".center(curses.COLS-1)
+        self._screen.addstr(curses.LINES-1, 0, string)
         self.schedule_update()
         
         while not self._stop:
