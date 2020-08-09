@@ -7,11 +7,11 @@ with open("requirements.txt", "r") as fh:
     requirements = fh.read().split("\n")
 
 setuptools.setup(
-    name="pypm",
+    name="py-pm",
     version="0.0.1",
     author="Francisco Rodrigues",
     author_email="francisco.rodrigues0908@gmail.com",
-    description="A simple python-based process manager",
+    description="A simple, python-based process manager",
     install_requires=requirements,
     long_description=long_description,
     long_description_content_type="text/markdown",
