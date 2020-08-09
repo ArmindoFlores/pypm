@@ -10,6 +10,8 @@ CMD_LIST = "list"
 CMD_STOP = "stop"
 CMD_GET_PID = "procpid"
 CMD_GET_UPTIME = "procupt"
+CMD_GET_STDOUT = "procstdout"
+CMD_GET_STDERR = "porcstderr"
 
 DATA_CODE = b"\x00"
 MSG_CODE = b"\x01"

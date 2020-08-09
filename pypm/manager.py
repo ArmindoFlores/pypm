@@ -1,3 +1,4 @@
+import logging
 import os
 import select
 import shlex
@@ -14,7 +15,7 @@ def sbool(string):
     return True if string == "True" else False
 
 
-# TODO: Add logging capabilities and documentation
+# TODO: Add documentation
 class ProcessManager:
     def __init__(self, port=8080, log_dir=None, log_frequency=30):
         self.port = port
@@ -99,6 +100,10 @@ class ProcessManager:
                 self._process_command_rem_proc(command, sock)
             elif command[0] == const.CMD_KILL_PROCESS:
                 self._process_command_kill_proc(command, sock)
+            elif command[0] == const.CMD_GET_STDERR:
+                self._process_get_stderr(command, sock)
+            elif command[0] == const.CMD_GET_STDOUT:
+                self._process_get_stdout(command, sock)
             elif command[0] == const.CMD_LIST:
                 self._process_list_cmd(command, sock)
             else:
@@ -106,6 +111,40 @@ class ProcessManager:
         except ConnectionResetError:
             pass
             
+    def _process_get_stdout(self, command, sock):
+        try:
+            if len(command) == 2:
+                name = command[1]
+                out = None
+                for process in self._processes:
+                    if process.name == name:
+                        out = process.stdout
+                if out is None:
+                    sock.sendall(const.MSG_CODE+b"Error: Couldn't find process '" + name.encode() + b"'")
+                else:
+                    sock.sendall(const.DATA_CODE+'\n'.join(out).encode())
+            else:
+                sock.sendall(const.MSG_CODE+b"Error: Invalid number of arguments")
+        except Exception:
+            sock.sendall(const.MSG_CODE+b"Error: Couldn't get stdout")
+            
+    def _process_get_stderr(self, command, sock):
+        try:
+            if len(command) == 2:
+                name = command[1]
+                err = None
+                for process in self._processes:
+                    if process.name == name:
+                        err = process.stderr
+                if err is None:
+                    sock.sendall(const.MSG_CODE+b"Error: Couldn't find process '" + name.encode() + b"'")
+                else:
+                    sock.sendall(const.DATA_CODE+'\n'.join(err).encode())
+            else:
+                sock.sendall(const.MSG_CODE+b"Error: Invalid number of arguments")
+        except Exception:
+            sock.sendall(const.MSG_CODE+b"Error: Couldn't get stderr")
+    
     def _process_list_cmd(self, command, sock):
         try:
             if len(command) == 1:
@@ -256,7 +295,7 @@ class ProcessManager:
                     return
                 if process.active:
                     process.kill()
-                process.start()
+                process.start(True)
                 sock.sendall(const.MSG_CODE+b"Successfully restarted process '" + name.encode() + b"'")
             else:
                 if len(self._processes) == 0:
@@ -267,7 +306,7 @@ class ProcessManager:
                     try:
                         if process.active:
                             process.kill()
-                        process.start()
+                        process.start(True)
                         c += 1
                     except Exception:
                         pass
@@ -299,7 +338,7 @@ class ProcessManager:
                 if process.active:
                     sock.sendall(const.MSG_CODE+b"Warning: Process was already running, so nothing was done")
                 else:
-                    process.start()
+                    process.start(True)
                     sock.sendall(const.MSG_CODE+b"Successfully started process '" + name.encode() + b"'")
             else:
                 if len(self._processes) == 0:
@@ -309,7 +348,7 @@ class ProcessManager:
                 for process in self._processes:
                     if not process.active:
                         try:
-                            process.start()
+                            process.start(True)
                             c += 1
                         except Exception:
                             pass
@@ -385,16 +424,19 @@ class ProcessManager:
     def start(self):
         self._socket.bind(("localhost", self.port))
         for process in self._processes:
-            process.start()
+            process.start(True)
         self.main_loop()
         
     def server_loop(self):
         self._socket.listen()
         while not self._stop:
-            sock, _ = self._socket.accept()
-            command = sock.recv(2048).decode("utf-8")
-            self._process_command(command, sock)
-            sock.close()
+            try:
+                sock, _ = self._socket.accept()
+                command = sock.recv(2048).decode("utf-8")
+                self._process_command(command, sock)
+                sock.close()
+            except ConnectionResetError:
+                pass
         
     def main_loop(self):
         try:
@@ -403,18 +445,23 @@ class ProcessManager:
             self._server_thread.start()
             while not self._stop:
                 if time.time() - start > self.log_period:
+                    
                     start = time.time()
-                    for process in self._log_memory:
-                        self.log_process_memory(process)
-                    for process in self._log_cpu:
-                        self.log_process_cpu(process)  
+                    for process in self._processes:
+                        if process in self._log_memory:
+                            self.log_process_memory(process)
+                        if process in self._log_cpu:
+                            self.log_process_cpu(process)
+                        if process.active:
+                            process.process_stdout()
+                            process.process_stderr()
         except KeyboardInterrupt:    
             pass
         finally:
             self._stop = True
             
-            #* In case the server_loop hasn't stopped yet, prevent
-            #* socket.accept() from hanging by connecting
+            # * In case the server_loop hasn't stopped yet, prevent
+            # * socket.accept() from hanging by connecting
             try:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s.setblocking(0)

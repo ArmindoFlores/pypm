@@ -1,10 +1,11 @@
 import curses
 import threading
-import traceback
 import time
+import traceback
 
 from .__main__ import (process_cpu_command, process_mem_command,
-                       process_pid_command, process_uptime_command)
+                       process_pid_command, process_stderr_command,
+                       process_stdout_command, process_uptime_command)
 from .units import Size, Time
 
 CTRL_Z = 26
@@ -15,6 +16,7 @@ K_LEFT = 452
 K_RIGHT = 454
 K_RETURN = 10
 K_ESCAPE = 27
+K_SPACE = 32
 DISPLAY = {
     "command": "Command",
     "pid": "PID",
@@ -22,6 +24,12 @@ DISPLAY = {
     "cpu": "CPU Usage",
     "uptime": "Uptime"
 }
+
+def wrap(string, width):
+    c = 0
+    while c < len(string):
+        yield string[c:c+width]
+        c += width
 
 def pad(string, size):
     return string[:size] + " "*max(0, size-len(string))
@@ -32,6 +40,8 @@ class App:
         self._port = port
         self._processes = {}
         self._selected_proc = 0
+        self._log_offset = 0
+        self._log_mode = "stderr"
         self._proc_offset = 0
         self._selected = 0
         self._screen = None
@@ -72,12 +82,16 @@ class App:
                         pid = process_pid_command([proc], self._host, self._port)
                         if pid is None:
                             break
+                        stdout = process_stdout_command([proc], self._host, self._port)
+                        stderr = process_stderr_command([proc], self._host, self._port)
                         self._processes[proc]["pid"] = pid[proc] if pid[proc] != -1 else "N/A"
                         self._processes[proc]["uptime"] = uptime[proc]
                         self._processes[proc]["mem"] = mem[proc]
                         self._processes[proc]["cpu"] = str(cpu[proc])+"%"
+                        self._processes[proc]["logs"]["stdout"] = stdout
+                        self._processes[proc]["logs"]["stderr"] = stderr
                         start = time.time()
-                    self.schedule_update(["botright"])
+                    self.schedule_update(["botright", "topright"])
         except Exception:
             traceback.print_exc()
             pass
@@ -90,7 +104,11 @@ class App:
             "pid": "N/A",
             "uptime": "0s",
             "mem": "0.0B",
-            "cpu": "0.0%"
+            "cpu": "0.0%",
+            "logs": {
+                "stdout": [],
+                "stderr": []
+            }
         }
         
     def schedule_update(self, screens=[]):
@@ -137,6 +155,17 @@ class App:
         self.RED = curses.color_pair(5)
         self.YELLOW = curses.color_pair(6)
         return True
+    
+    def get_log_lines(self, ltype):
+        max_x = self._toprightwin.getmaxyx()[1]-4
+        keys = list(self._processes.keys())
+        proc_name = keys[self._selected_proc]
+        proc = self._processes[proc_name]
+        c = 0
+        for line in proc["logs"][ltype]:
+            for sub in wrap(line, max_x):
+                c += 1
+        return c
         
     def update_topleftwin(self):
         self._topleftwin.clear()
@@ -171,7 +200,32 @@ class App:
             self._toprightwin.attron(self.BLUE)
         self._toprightwin.box()
         self._toprightwin.attroff(self.BLUE)
-        self._toprightwin.addstr(0, 2, " Logs ")
+        self._toprightwin.addstr(0, 2, f" Logs ({self._log_mode}) ")
+        self._toprightwin.move(2, 0)
+        max_y , max_x = self._toprightwin.getmaxyx()
+        max_x -= 4
+        max_y -= 3
+        if len(self._processes) > 0:
+            keys = list(self._processes.keys())
+            proc_name = keys[self._selected_proc]
+            proc = self._processes[proc_name]
+            c = self.get_log_lines(self._log_mode)
+            start = max(0, c-max_y)
+            l = 2-start-self._log_offset
+            for line in proc["logs"][self._log_mode]:
+                for sub in wrap(line, max_x):
+                    if l >= 2:
+                        if "warning" in sub.lower():
+                            self._toprightwin.attron(self.YELLOW)
+                        elif "error" in sub.lower() or "critical" in sub.lower():
+                            self._toprightwin.attron(self.RED)
+                        self._toprightwin.addstr(l, 2, sub)
+                        self._toprightwin.attroff(self.YELLOW|self.RED)
+                    l += 1
+                    if l > max_y:
+                        break
+                if l > max_y:
+                    break
         self._toprightwin.refresh()
         
     def update_botrightwin(self):
@@ -196,7 +250,7 @@ class App:
             self._botrightwin.attroff(self.RED|self.GREEN)
             
             self._botrightwin.addstr(1, 2, f"Name: {pad(proc_name, max_x-5)}")
-            for i in range(len(proc)):
+            for i in range(len(proc)-1):
                 if i >= max_y:
                     break
                 attr = list(proc.keys())[i]
@@ -231,26 +285,52 @@ class App:
             if char != -1:
                 if char == CTRL_C or char == CTRL_Z:
                     break
-                elif char == K_RIGHT:
+                elif char == K_SPACE:
+                    self._log_offset = 0
+                    if self._selected == 1:
+                        if self._log_mode == "stderr":
+                            self._log_mode = "stdout"
+                        else:
+                            self._log_mode = "stderr"
+                elif char == K_RIGHT or char == curses.KEY_RIGHT:
                     self._selected = (self._selected + 1)%3
                     self.schedule_update()
-                elif char == K_LEFT:
+                elif char == K_LEFT or char == curses.KEY_LEFT:
                     self._selected = (self._selected - 1)%3
                     self.schedule_update()
-                elif char == K_UP:
+                elif char == K_UP or char == curses.KEY_UP:
                     if self._selected == 0:
                         if len(self._processes) != 0:
                             self._selected_proc -= 1
                             self._selected_proc %= len(self._processes)
                             self.update_proc_offset()
                             self.schedule_update(["topleft"])
-                elif char == K_DOWN:
+                    elif self._selected == 1:
+                        if len(self._processes) != 0:
+                            keys = list(self._processes.keys())
+                            proc_name = keys[self._selected_proc]
+                            proc = self._processes[proc_name]
+                            lines = self.get_log_lines(self._log_mode)
+                            max_y = self._toprightwin.getmaxyx()[0] - 3
+                            if self._log_offset > -(lines - max_y):
+                                self._log_offset -= 1
+                                self.schedule_update(["topright"])
+                elif char == K_DOWN or char == curses.KEY_DOWN:
                     if self._selected == 0:
                         if len(self._processes) != 0:
                             self._selected_proc += 1
                             self._selected_proc %= len(self._processes)
                             self.update_proc_offset()
                             self.schedule_update(["topleft"])
+                    elif self._selected == 1:
+                        if len(self._processes) != 0:
+                            keys = list(self._processes.keys())
+                            proc_name = keys[self._selected_proc]
+                            proc = self._processes[proc_name]
+                            lines = self.get_log_lines(self._log_mode)
+                            if self._log_offset < 0:
+                                self._log_offset += 1
+                                self.schedule_update(["topright"])
                 
             if self._should_update["topleft"]:
                 self.update_topleftwin()

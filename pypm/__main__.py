@@ -291,6 +291,22 @@ def process_uptime_command(args, host, port):
     else:
         print_msg(resp[1:].decode())
         return None
+    
+def process_stdout_command(args, host, port):
+    """Gets the last 100 lines of output from the process"""
+    resp = send_command(const.CMD_GET_STDOUT, args, host, port)
+    if isdata(resp):
+        return resp[1:].decode().split("\n")
+    else:
+        print_msg(resp[1:])
+        
+def process_stderr_command(args, host, port):
+    """Gets the last 100 lines of output from the process"""
+    resp = send_command(const.CMD_GET_STDERR, args, host, port)
+    if isdata(resp):
+        return resp[1:].decode().split("\n")
+    else:
+        print_msg(resp[1:])
         
 def process_stop_command(args, host, port):
     """Closes the pypm server running on the given host"""
