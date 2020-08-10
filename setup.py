@@ -8,7 +8,7 @@ with open("requirements.txt", "r") as fh:
 
 setuptools.setup(
     name="python-pm",
-    version="0.0.2",
+    version="0.0.3",
     author="Francisco Rodrigues",
     author_email="francisco.rodrigues0908@gmail.com",
     description="A simple, python-based process manager",
