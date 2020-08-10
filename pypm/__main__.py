@@ -1,6 +1,7 @@
 import argparse
 import socket
 import struct
+import sys
 
 import termtables as tt
 from colorama import Fore, Style
@@ -399,14 +400,23 @@ if __name__ == "__main__":
             print_msg("Error: this port is already in use")
             quit()
         
+        kwargs = {
+            "shell": False,
+            "stdin": None,
+            "stdout": None,
+            "stderr": None,
+            "close_fds": True
+        }
+        if sys.platform == "win32":
+            kwargs["creationflags"] = 0x00000008
+            
         pid = subprocess.Popen([sys.executable, 
                                 "-m", 
                                 "pypm.pypm", 
                                 str(args.port), 
                                 str(args.logdir), 
                                 str(args.logfreq)],
-                shell=False, stdin=None, stdout=None, stderr=None,
-                 close_fds=True, creationflags=0x00000008).pid
+                **kwargs).pid
         print_msg(f"Started process manager on port {args.port} with the PID {pid}")
         
     elif cmd in commands:

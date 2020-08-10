@@ -3,5 +3,5 @@ from .manager import ProcessManager
 from .process import Process
 from .units import Size
 
-VERSION = "0.0.1"
+VERSION = "0.0.2"
    

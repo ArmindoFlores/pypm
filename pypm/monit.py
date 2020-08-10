@@ -131,6 +131,7 @@ class App:
         if curses.LINES < 17 or curses.COLS < 54:
             print("Your terminal isn't big enough")
             return False
+        curses.raw()
         curses.curs_set(False)
         self._screen.nodelay(True)
         lsize = (curses.LINES-1, curses.COLS//3)
@@ -168,7 +169,7 @@ class App:
         return c
         
     def update_topleftwin(self):
-        self._topleftwin.clear()
+        self._topleftwin.erase()
         if self._selected == 0:
             self._topleftwin.attron(self.BLUE)
         self._topleftwin.box()
@@ -195,7 +196,7 @@ class App:
         self._topleftwin.refresh()
         
     def update_toprightwin(self):
-        self._toprightwin.clear()
+        self._toprightwin.erase()
         if self._selected == 1:
             self._toprightwin.attron(self.BLUE)
         self._toprightwin.box()
@@ -229,7 +230,7 @@ class App:
         self._toprightwin.refresh()
         
     def update_botrightwin(self):
-        self._botrightwin.clear()
+        self._botrightwin.erase()
         if self._selected == 2:
             self._botrightwin.attron(self.BLUE)
         self._botrightwin.box()
@@ -273,10 +274,10 @@ class App:
         self._screen = screen
         if not self.setup():
             return
-        self._screen.clear()
-        self._botrightwin.clear()
-        self._toprightwin.clear()
-        self._topleftwin.clear()
+        self._screen.erase()
+        self._botrightwin.erase()
+        self._toprightwin.erase()
+        self._topleftwin.erase()
         string = "Press Ctrl+C to exit | Use [SPACE] to change log mode".center(curses.COLS-1)
         self._screen.addstr(curses.LINES-1, 0, string)
         self.schedule_update()
