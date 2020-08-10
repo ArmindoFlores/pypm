@@ -299,7 +299,7 @@ def process_stdout_command(args, host, port):
     if isdata(resp):
         return resp[1:].decode().split("\n")
     else:
-        print_msg(resp[1:])
+        print_msg(resp[1:].decode())
         
 def process_stderr_command(args, host, port):
     """Gets the last 100 lines of output from the process"""
@@ -307,7 +307,7 @@ def process_stderr_command(args, host, port):
     if isdata(resp):
         return resp[1:].decode().split("\n")
     else:
-        print_msg(resp[1:])
+        print_msg(resp[1:].decode())
         
 def process_stop_command(args, host, port):
     """Closes the pypm server running on the given host"""

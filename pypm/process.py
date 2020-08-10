@@ -10,7 +10,7 @@ from .units import Size, Time
 
 class Process:
     def __init__(self, name, command):
-        self.max_buff_size = 100
+        self.max_buff_size = 10000
         self.name = name
         self._command = command
         self._process = None
@@ -19,8 +19,8 @@ class Process:
         self._thread = None
         self._outstream = None
         self._errstream = None
-        self._outbuff = []
-        self._errbuff = []
+        self._outbuff = b""
+        self._errbuff = b""
         
     def __eq__(self, other):
         return isinstance(other, Process) and other.name == self.name
@@ -47,42 +47,30 @@ class Process:
         return self._errbuff
             
     def process_stdout(self):
-        new = self.get_stdout().decode()
-        if new != "":
-            self._outbuff = self._outbuff + new.split("\n")
-        while len(self._outbuff) > self.max_buff_size:
-            self._outbuff.pop(0)
+        new = self.get_stdout().replace(b"\x00", b"")
+        self._outbuff += new
+        start = max(0, len(self._outbuff)-self.max_buff_size)
+        self._outbuff = self._outbuff[start:]
             
     def process_stderr(self):
-        new = self.get_stderr().decode()
-        if new != "":
-            self._errbuff = self._errbuff + new.split("\n")  
-        while len(self._errbuff) > self.max_buff_size:
-            self._errbuff.pop(0)
+        new = self.get_stderr().replace(b"\x00", b"")
+        self._errbuff += new
+        start = max(0, len(self._errbuff)-self.max_buff_size)
+        self._errbuff = self._errbuff[start:]
         
     def get_stdout(self):
         self._outstream.flush()
         self._outstream.seek(0)
         r = self._outstream.read()
-        if b"\n" in r:
-            nl = r.rindex(b"\n")
-            self._outstream.truncate(0)
-            self._outstream.write(r[nl+1:])
-            return r[:nl]
-        else:
-            return b""
+        self._outstream.truncate(0)
+        return r
     
     def get_stderr(self):
         self._errstream.flush()
         self._errstream.seek(0)
         r = self._errstream.read()
-        if b"\n" in r:
-            nl = r.rindex(b"\n")
-            self._errstream.truncate(0)
-            self._errstream.write(r[nl+1:])
-            return r[:nl]
-        else:
-            return b""
+        self._errstream.truncate(0)
+        return r
         
     def kill(self):
         self._start = Time(0)

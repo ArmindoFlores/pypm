@@ -1,4 +1,5 @@
 import curses
+import sys
 import threading
 import time
 import traceback
@@ -59,6 +60,8 @@ class App:
         self.BLUE = None
         self.SELECT = None
         self.RED = None
+        self.rows = 0
+        self.cols = 0
         
         self._stop = False
         
@@ -128,18 +131,20 @@ class App:
         curses.wrapper(self.main_loop)
         
     def setup(self):
-        if curses.LINES < 17 or curses.COLS < 54:
+        self.rows, self.cols = self._screen.getmaxyx()
+        if self.rows < 17 or self.cols < 54:
             print("Your terminal isn't big enough")
             return False
+
         curses.raw()
         curses.curs_set(False)
         self._screen.nodelay(True)
-        lsize = (curses.LINES-1, curses.COLS//3)
+        lsize = (self.rows-1, self.cols//3)
         self._topleftwin = curses.newwin(*lsize, 0, 0)
-        height = curses.LINES-9
-        width = curses.COLS-lsize[1]
+        height = self.rows-9
+        width = self.cols-lsize[1]
         self._toprightwin = curses.newwin(height, width, 0, lsize[1])
-        self._botrightwin = curses.newwin(curses.LINES-height-1, width, height, lsize[1])
+        self._botrightwin = curses.newwin(self.rows-height-1, width, height, lsize[1])
         
         curses.use_default_colors()
         curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLACK)
@@ -220,7 +225,7 @@ class App:
                             self._toprightwin.attron(self.YELLOW)
                         elif "error" in sub.lower() or "critical" in sub.lower():
                             self._toprightwin.attron(self.RED)
-                        self._toprightwin.addstr(l, 2, sub)
+                        self._toprightwin.addstr(l, 2, sub.replace("\x00", ""))
                         self._toprightwin.attroff(self.YELLOW|self.RED)
                     l += 1
                     if l > max_y:
@@ -250,12 +255,14 @@ class App:
             self._botrightwin.addstr(0, 10, " ⬤ ")
             self._botrightwin.attroff(self.RED|self.GREEN)
             
-            self._botrightwin.addstr(1, 2, f"Name: {pad(proc_name, max_x-5)}")
+            self._botrightwin.addstr(1, 2, f"Name: {pad(proc_name, max_x-6)}")
             for i in range(len(proc)-1):
                 if i >= max_y:
                     break
                 attr = list(proc.keys())[i]
-                self._botrightwin.addstr(2+i, 2, f"{DISPLAY[attr]}: {proc[attr]}")
+                value = str(proc[attr])
+                attr = DISPLAY[attr]
+                self._botrightwin.addstr(2+i, 2, f"{attr}: {pad(value, max_x-len(attr)-2)}")
         self._botrightwin.refresh()
         
     def update_proc_offset(self):
@@ -278,18 +285,30 @@ class App:
         self._botrightwin.erase()
         self._toprightwin.erase()
         self._topleftwin.erase()
-        string = "Press Ctrl+C to exit | Use [SPACE] to change log mode".center(curses.COLS-1)
-        self._screen.addstr(curses.LINES-1, 0, string)
+        string = "Press Ctrl+C to exit | Use [SPACE] to change log mode".center(self.cols-1)
+        self._screen.addstr(self.rows-1, 0, string)
         self.schedule_update()
         
         while not self._stop:
             char = self._screen.getch()
             if char != -1:
-                if char == CTRL_C or char == CTRL_Z:
+                if char == curses.KEY_RESIZE:
+                    if not self.setup():
+                        break
+                    self._screen.erase()
+                    self._botrightwin.erase()
+                    self._toprightwin.erase()
+                    self._topleftwin.erase()
+                    string = "Press Ctrl+C to exit | Use [SPACE] to change log mode".center(self.cols-1)
+                    self._screen.addstr(self.rows-1, 0, string)
+                    self._screen.refresh()
+                    self.schedule_update()
+                elif char == CTRL_C or char == CTRL_Z:
                     break
                 elif char == K_SPACE:
                     self._log_offset = 0
                     if self._selected == 1:
+                        self.schedule_update(["topright"])
                         if self._log_mode == "stderr":
                             self._log_mode = "stdout"
                         else:
