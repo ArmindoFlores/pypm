@@ -1,4 +1,5 @@
 import argparse
+import os
 import socket
 import struct
 import sys
@@ -9,6 +10,10 @@ from colorama import Fore, Style
 from . import constants as const
 from .process import Process
 from .units import Size
+
+DEBUG = os.environ.get("PYPMDEBUG")
+if DEBUG is None: DEBUG = False
+else: DEBUG = True
 
 commands = [
     "init",
@@ -319,8 +324,9 @@ def process_add_command(args, host, port):
     name, command = args[:2]
     log_cpu = args[2] if len(args) >= 3 else "False"
     log_freq = args[3] if len(args) == 4 else "False"
+    dir_ = '"'+os.path.abspath(os.curdir)+'"'
     resp = send_command(const.CMD_ADD_PROCESS, 
-                        [name, command, log_cpu, log_freq], 
+                        [name, command, log_cpu, log_freq, dir_], 
                         host, port)
     print_msg(resp[1:].decode())
         
@@ -383,41 +389,43 @@ if __name__ == "__main__":
         # ! This is only for debugging purposes. It makes it so the start 
         # ! command hangs and prints all output to the terminal window 
         # ! where it was called from
-        # try:
-        #     main(args.port, args.logdir, args.logfreq)
-        # except socket.error:
-        #     print_msg("Error: this port is already in use")
-        
-        # * This would be the actual production code
-        
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            result = sock.connect_ex(("127.0.0.1", args.port))
-            if result == 0:
+        if DEBUG:
+            try:
+                main(args.port, args.logdir, args.logfreq)
+            except socket.error:
                 print_msg("Error: this port is already in use")
                 quit()
-        except socket.error:
-            print_msg("Error: this port is already in use")
-            quit()
         
-        kwargs = {
-            "shell": False,
-            "stdin": None,
-            "stdout": None,
-            "stderr": None,
-            "close_fds": True
-        }
-        if sys.platform == "win32":
-            kwargs["creationflags"] = 0x00000008
-            
-        pid = subprocess.Popen([sys.executable, 
-                                "-m", 
-                                "pypm.pypm", 
-                                str(args.port), 
-                                str(args.logdir), 
-                                str(args.logfreq)],
-                **kwargs).pid
-        print_msg(f"Started process manager on port {args.port} with the PID {pid}")
+        # * This is the actual production code
+        else:
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                result = sock.connect_ex(("127.0.0.1", args.port))
+                if result == 0:
+                    print_msg("Error: this port is already in use")
+                    quit()
+            except socket.error:
+                print_msg("Error: this port is already in use")
+                quit()
+        
+            kwargs = {
+                "shell": False,
+                "stdin": None,
+                "stdout": None,
+                "stderr": None,
+                "close_fds": True
+            }
+            if sys.platform == "win32":
+                kwargs["creationflags"] = 0x00000008
+                
+            pid = subprocess.Popen([sys.executable, 
+                                    "-m", 
+                                    "pypm.pypm", 
+                                    str(args.port), 
+                                    str(args.logdir), 
+                                    str(args.logfreq)],
+                    **kwargs).pid
+            print_msg(f"Started process manager on port {args.port} with the PID {pid}")
         
     elif cmd in commands:
         argparser = get_cmd_parser(cmd)

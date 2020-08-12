@@ -266,8 +266,8 @@ class ProcessManager:
             
     def _process_command_add_proc(self, command, sock):
         try:
-            if len(command) == 5:
-                name, cmd, log_cpu, log_freq = command[1:]
+            if len(command) == 6:
+                name, cmd, log_cpu, log_freq, dir_ = command[1:]
                 if len(name) > 16:
                     sock.sendall(const.MSG_CODE+b"Error: Name can't be over 16 characters long")
                     return
@@ -277,7 +277,7 @@ class ProcessManager:
                 if not cmd.isprintable():
                     sock.sendall(const.MSG_CODE+b"Error: Invalid command")
                     return
-                process = Process(name, cmd)
+                process = Process(name, cmd, dir_)
                 if self.add_process(process, sbool(log_cpu), sbool(log_freq)):
                     sock.sendall(const.MSG_CODE+b"Successfully added process '" + name.encode() + b"'")
                 else:

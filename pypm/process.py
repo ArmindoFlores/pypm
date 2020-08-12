@@ -1,4 +1,5 @@
 import datetime
+import os
 import subprocess
 import tempfile
 import threading
@@ -9,7 +10,7 @@ from .units import Size, Time
 
 
 class Process:
-    def __init__(self, name, command):
+    def __init__(self, name, command, dir="."):
         self.max_buff_size = 10000
         self.name = name
         self._command = command
@@ -21,11 +22,15 @@ class Process:
         self._errstream = None
         self._outbuff = b""
         self._errbuff = b""
+        self._dir = dir
+        print(self._dir)
         
     def __eq__(self, other):
         return isinstance(other, Process) and other.name == self.name
         
     def start(self, pipe=False):
+        previous = os.path.abspath(os.curdir)
+        os.chdir(self._dir)
         if self.active:
             raise OSError("Process is already running")
         self._start = datetime.datetime.now()
@@ -37,6 +42,7 @@ class Process:
                                              stderr=self._errstream)
         else:
             self._process = subprocess.Popen(self._command.split())
+        os.chdir(previous)
             
     @property
     def stdout(self):
